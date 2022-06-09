@@ -2,19 +2,68 @@ package com.example.demo.student;
 
 import org.springframework.stereotype.Service;
 
+import javax.transaction.Transactional;
 import java.time.LocalDate;
 import java.time.Month;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 
 @Service
 public class StudentService {
+
+    private final StudentRepository studentRepository;
+
+    public StudentService(StudentRepository studentRepository) {
+        this.studentRepository = studentRepository;
+    }
+
     public List<Student> getStudent() {
-        return List.of(new Student(
-                1L,
-                "Marin",
-                LocalDate.of(2000, Month.JANUARY, 5),
-                21,
-                "Marin@gmail.com"
-        ));
+        return studentRepository.findAll();
+    }
+
+    public void addNewStudent(Student student) {
+        Optional<Student> studentOptional = studentRepository.findStudentByEmail(student.getEmail());
+
+        if(studentOptional.isPresent()) {
+            throw new IllegalStateException("email taken!");
+        }
+        System.out.println(student);
+
+        studentRepository.save(student);
+    }
+
+    public void deleteStudent(Long studentId) {
+        boolean exists = studentRepository.existsById(studentId);
+        if (!exists){
+            throw new IllegalStateException("Student with id : " + studentId + " does not exists");
+        }
+
+        studentRepository.deleteById(studentId);
+    }
+
+    //@Transactional annotation 可以使entity進入managed狀態,只要使用setter即可更新欄位
+    @Transactional
+    public void updateStudent(Long studentId, String name, String email) {
+        Student student = studentRepository.findById(studentId)
+                .orElseThrow(() -> new IllegalStateException(
+                        "student with id : " + studentId  + " does not exists."
+                        )
+                );
+
+        if (name != null && name.length() > 0 &&
+            Objects.equals(student.getName(), name)) {
+            student.setName(name);
+        }
+
+        if (email != null && email.length() > 0 &&
+                Objects.equals(student.getEmail(), email)) {
+            Optional<Student> studentOptional = studentRepository.findStudentByEmail(email);
+
+            if(studentOptional.isPresent()) {
+                throw new IllegalStateException("email taken.");
+            }
+            student.setEmail(email);
+        }
     }
 }
